@@ -220,9 +220,3 @@ function OnMouseOver(circle, event) {
     tooltipPara.html(aStr);
 }
 
-function OnMouseMove(circle) {
-} // tooltip.style("top", (offsetY - 30) + "px").style("left", (event.offsetX + 10) + "px")
-
-function OnMouseOut(circle) {
-    temperatureTooltip.style("visibility", "hidden");
-}
