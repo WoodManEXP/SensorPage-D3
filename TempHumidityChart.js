@@ -71,19 +71,47 @@ function TempHumidityChart(temperatureDivID, humidityDivID, theData) {
 
     // Append the svg object within the specified div
     // along with the primary g element.
-    const svg = temperatureDiv // https://d3js.org/d3-selection/selecting
+    var svg = temperatureDiv // https://d3js.org/d3-selection/selecting
         .append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom);
-    const temperatureG = svg.append("g")
+    var temperatureG = svg.append("g")
         .attr("id", "TemperatureG")
         .attr("transform",
             "translate(" + margin.left + "," + margin.top + ")");
 
+    svg = humidityDiv // https://d3js.org/d3-selection/selecting
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom);
+    var humidityG = svg.append("g")
+        .attr("id", "HumidityG")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+    // <div> and <p> for the tooltips
+    tooltip = temperatureDiv
+        .append("div")
+        .style("position", "absolute")
+        .style("visibility", "hidden")
+        .style("background-color", "white")
+        .style("border-style", "solid")
+        .style("border-width", "1px");
+
+    tooltipPara = tooltip
+        .append("p")
+        .style("font-size", "12px")
+        .style("margin-left", "3px")
+        .style("margin-right", "3px")
+        .style("margin-bottom", "3px")
+        .style("margin-top", "3px")
+        .style("font-family", "Arial")
+        .text("Tooltip");
+
     //
     // Add X axis --> for the extent of dates in tempData
     //
-    const xScale = d3.scaleTime();                  // A D3 scaler
+    const xScale = d3.scaleTime();            // A D3 scaler
     const extent = d3.extent(dataArray,       // Let D3 calculate extent
         function (d) { return d.DT; });
     // Stretch the extent a bit, helps with X margin apperance
@@ -102,8 +130,10 @@ function TempHumidityChart(temperatureDivID, humidityDivID, theData) {
         .attr("transform", `translate(0, ${height})`)
         .call(xAxis);
 
+    // Temperature chart
+
     // Y axis
-    const yScale = d3.scaleLinear()
+    var yScale = d3.scaleLinear()
         .domain([yMinTemperature - 2, yMaxTemperature + 2]) // +-2, bit of extra space
         .range([height, 0]);
     temperatureG.append("g")
@@ -150,24 +180,6 @@ function TempHumidityChart(temperatureDivID, humidityDivID, theData) {
             .attr("stroke-width", 1.5)
             .attr("d", d3Line)
 
-    // <div> for the tooltip
-    tooltip = temperatureDiv
-        .append("div")
-        .style("position", "absolute")
-        .style("visibility", "hidden")
-        .style("background-color", "white")
-        .style("border-style", "solid")
-        .style("border-width", "1px");
-
-    tooltipPara = tooltip
-        .append("p")
-        .style("margin-left", "3px")
-        .style("margin-right", "3px")
-        .style("margin-bottom", "3px")
-        .style("margin-top", "3px")
-        .style("font-family", "Arial")
-        .text("Tooltip");
-
     // Circles at the data points
     var symbolsG = temperatureG.append("g");
     for (var i = 0; i < dataArray.length; i++) {
@@ -186,6 +198,77 @@ function TempHumidityChart(temperatureDivID, humidityDivID, theData) {
             .attr("onmousemove", "OnMouseMove(this)")
             .attr("onmouseleave", "OnMouseOut(this)");
     }
+
+    // Humidity chart
+
+    // X axis (duplicate of temperature chart X axis)
+    humidityG.append("g")
+        .style("font-size", "12px")
+        .attr("transform", `translate(0, ${height})`)
+        .call(xAxis);
+
+    // Y axis
+    yScale = d3.scaleLinear()
+        .domain([yMinHumidity - 2, yMaxHumidity + 2]) // +-2, bit of extra space
+        .range([height, 0]);
+    humidityG.append("g")
+        .style("font-size", "14px")
+        .call(d3.axisLeft(yScale));
+
+    // Look as though there is no straight-forward means to gen <path>s
+    // with different color segments. So this'll generate path in segments
+    // of runs of the same color.
+    lastCategory = dataArray[1].WasOff; // No need for transition between 0 and 1
+    pathArray = [{ "x": dataArray[0].DT, "y": dataArray[0].Humidity }];
+    for (i = 1; i < dataArray.length; i++) {
+
+        var category = dataArray[i].WasOff;
+
+        if (category != lastCategory) {
+            // Render path up to this point
+            humidityG.append("path")
+                .datum(pathArray)
+                .attr("fill", "none")
+                .attr("stroke", colorMap.get(lastCategory).color)
+                .attr("stroke-width", 1.5)
+                .attr("d", d3Line)
+
+            pathArray = [];
+            lastCategory = category;
+            // Starting point for next segment
+            pathArray.push({ "x": dataArray[i - 1].DT, "y": dataArray[i - 1].Humidity });
+        }
+        pathArray.push({ "x": dataArray[i].DT, "y": dataArray[i].Humidity });
+    }
+
+    // Add the last segment, if there is one.
+    if (pathArray.length > 0)
+        humidityG.append("path")
+            .datum(pathArray)
+            .attr("fill", "none")
+            .attr("stroke", colorMap.get(lastCategory).color)
+            .attr("stroke-width", 1.5)
+            .attr("d", d3Line)
+
+    // Circles at the data points
+    symbolsG = humidityG.append("g");
+    for (var i = 0; i < dataArray.length; i++) {
+        var d = dataArray[i];
+        var category = d.WasOff;
+        var circle = symbolsG.append('circle')
+            .attr("id", i.toString()) // For finding temperatureData element in events
+            .attr("cx", xScale(d.DT))
+            .attr("cy", yScale(d.Humidity))
+            .attr("r", 3)
+            .attr("stroke", "black")
+            .attr("fill", colorMap.get(category).color)
+            .attr("data-torh", "h");
+        // Tooltip for circle
+        circle.attr("onmouseover", "OnMouseOver(this, event)")
+            .attr("onmousemove", "OnMouseMove(this)")
+            .attr("onmouseleave", "OnMouseOut(this)");
+    }
+
 }
 function OnMouseOver(circle, event) {
 
