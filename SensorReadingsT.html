@@ -10,7 +10,7 @@
         .currReadingValue {
             font-family: sans-serif;
             font-weight: bold;
-            font-size: 25px;
+            font-size: 20px;
             color: blue;
             text-align: center;
         }
@@ -57,8 +57,18 @@
         </table>
     </div>
 
-    <!-- Create divs to contain the Temp and Humidity chartt -->
+    <!-- Create divs to contain the charts -->
     <table>
+        <tr>
+            <td>
+                <p class="currReadingValue">_UpDownTitle</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div id="UpDownChartDiv"></div>
+            </td>
+        </tr>
         <tr>
             <td>
                 <p class="currReadingValue">_TempTitle</p>
@@ -80,9 +90,17 @@
             </td>
         </tr>
     </table>
-    <script type="text/javascript" src="TempHumidityChart.js"></script>
+    <script type="text/javascript" src="Charts.js"></script>
     <script>
-        // tempData is CSV string eg 2013-04-28 01:00,43,75,0
+        // upDownTimeData is CSV string eg 2013-04-28 01:00,0
+        // DTs look like 2013-04-28 01:00
+        // WasOff is 0 or 1
+        var upDownTimeData =
+            `DT,WasOff
+_UpDownTimeValues
+`;
+
+        // tempHumidityData is CSV string eg 2013-04-28 01:00,43,75,0
         // DTs look like 2013-04-28 01:00
         // Temperature looks like 43
         // Humidity looks like 75
@@ -91,7 +109,7 @@
             `DT,Temperature,Humidity,Baro,WasOff
 _TempHumidityValues
 `;
-        TempHumidityChart("#TemperatureChartDiv", "#HumidityChartDiv", tempHumidityData);
+        Charts("#UpDownChartDiv", "#TemperatureChartDiv", "#HumidityChartDiv", upDownTimeData, tempHumidityData);
     </script>
 </body>
 
