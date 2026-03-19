@@ -158,7 +158,7 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, te
 
     // Y axis
     var yScale = d3.scaleLinear()
-        .domain([-1, 2]) // Values in data are 0,1, add a bit of margin
+        .domain([2, -1]) // Values in data are 0,1, add a bit of margin
         .range([upDownHeight, 0]);
     var uDT_YAxis = d3.axisLeft(yScale).ticks(0);
     upDownG.append("g")
