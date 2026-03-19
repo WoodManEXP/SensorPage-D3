@@ -386,8 +386,7 @@ function OnMouseOver(circle, event) {
     // Make a DT string mm-dd-yyyy hh:mm (24 hr time)
     // Apparently no builtin DT formatting stuff in JS.
     var aDT_Str =
-        "<br>"
-        + dow[aDT.getDay()]
+        dow[aDT.getDay()]
         + " "
         + (1 + aDT.getMonth()).toString().padStart(2, '0')
         + "-"
@@ -408,17 +407,16 @@ function OnMouseOver(circle, event) {
     var aStr;
     switch (circle.getAttribute("data-whichchart")) {
         case "u":
-            aStr = "";
+            aStr = aDT_Str + powerOffStr;
             break;
         case "t":
-            aStr = element.Temperature.toString() + "F ";
+            aStr = element.Temperature.toString() + "F<br>" + aDT_Str + powerOffStr;
             break;
         case "h":
-            aStr = element.Humidity.toString() + "% ";
+            aStr = element.Humidity.toString() + "%<br>" + aDT_Str + powerOffStr;
             break;
         default:
     }
-    aStr += aDT_Str + powerOffStr;
     tooltipPara.html(aStr);
 }
 function OnMouseMove(circle) {
