@@ -2,8 +2,8 @@
 // Uses D3 to manipulate the DOM and make chart drawing
 
 // Placing these outside and functions like this places them in global scope
-var temperatureTooltip;
-var temperatureData;
+var tooltip;
+var dataArray;
 var tooltipPara;
 var dow = ["Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat"];
 
@@ -32,41 +32,51 @@ function csvDataToArray(csv) {
     return result;
 }
 
-function TempHumidityChart(theDivID, theData) {
+function TempHumidityChart(temperatureDivID, humidityDivID, theData) {
 
     if (theData.length <= 1)
         return;
 
-    var theDiv = d3.select(theDivID);
+    var temperatureDiv = d3.select(temperatureDivID);
+    var humidityDiv = d3.select(humidityDivID);
+
+    colorMap = new Map([
+        [0, { label: "PWR on", color: "steelblue" }],
+        [1, { label: "PWR was off", color: "red" }],
+    ]);
 
     // CVT data from CSV to array
-    temperatureData = csvDataToArray(theData);
+    dataArray = csvDataToArray(theData);
 
     // CVT Strings to other datatypes
     // Calc min and max for Y axis
-    var yMin = 999, yMax = -1;
+    var yMinTemperature = 999, yMaxTemperature = -1;
+    var yMinHumidity = 999, yMaxHumidity = -1;
     const parseDT = d3.timeParse("%Y-%m-%d %H:%M"); // Use D3's parser for DT values
-    temperatureData.forEach(function (value, index, array) {
+    dataArray.forEach(function (value, index, array) {
         array[index].DT = parseDT(value.DT);
-        var val = array[index].Value = Number(value.Value);
-        yMin = Math.min(yMin, val);
-        yMax = Math.max(yMax, val);
+        var val = array[index].Temperature = Number(value.Temperature);
+        yMinTemperature = Math.min(yMinTemperature, val);
+        yMaxTemperature = Math.max(yMaxTemperature, val);
+        val = array[index].Humidity = Number(value.Humidity);
+        yMinHumidity = Math.min(yMinHumidity, val);
+        yMaxHumidity = Math.max(yMaxHumidity, val);
         array[index].WasOff = Number(value.WasOff);
     })
 
     // Set the dimensions and margins of the graph
     var margin = { top: 10, right: 3, bottom: 20, left: 30 },
-        width = 600 - margin.left - margin.right,
-        height = 300 - margin.top - margin.bottom;
+        width = 800 - margin.left - margin.right,
+        height = 250 - margin.top - margin.bottom;
 
     // Append the svg object within the specified div
     // along with the primary g element.
-    const svg = theDiv // https://d3js.org/d3-selection/selecting
+    const svg = temperatureDiv // https://d3js.org/d3-selection/selecting
         .append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom);
-    const graphG = svg.append("g")
-        .attr("id", "TempG")
+    const temperatureG = svg.append("g")
+        .attr("id", "TemperatureG")
         .attr("transform",
             "translate(" + margin.left + "," + margin.top + ")");
 
@@ -74,7 +84,7 @@ function TempHumidityChart(theDivID, theData) {
     // Add X axis --> for the extent of dates in tempData
     //
     const xScale = d3.scaleTime();                  // A D3 scaler
-    const extent = d3.extent(temperatureData,       // Let D3 calculate extent
+    const extent = d3.extent(dataArray,       // Let D3 calculate extent
         function (d) { return d.DT; });
     // Stretch the extent a bit, helps with X margin apperance
     // FYI: the extent array has references to data elements rather
@@ -87,23 +97,18 @@ function TempHumidityChart(theDivID, theData) {
         .range([0, width]);
     const xAxis = d3.axisBottom(xScale)
         .ticks(7);
-    graphG.append("g")
+    temperatureG.append("g")
         .style("font-size", "12px")
         .attr("transform", `translate(0, ${height})`)
         .call(xAxis);
 
     // Y axis
     const yScale = d3.scaleLinear()
-        .domain([yMin - 2, yMax + 2]) // +-2, bit of extra space
+        .domain([yMinTemperature - 2, yMaxTemperature + 2]) // +-2, bit of extra space
         .range([height, 0]);
-    graphG.append("g")
+    temperatureG.append("g")
         .style("font-size", "14px")
         .call(d3.axisLeft(yScale));
-
-    colorMap = new Map([
-        [0, { label: "PWR on", color: "steelblue" }],
-        [1, { label: "PWR was off", color: "red" }],
-    ]);
 
     // Line generator, supplies coords from data for the line segments
     var d3Line = d3.line()
@@ -113,40 +118,40 @@ function TempHumidityChart(theDivID, theData) {
     // Look as though there is no straight-forward means to gen <path>s
     // with different color segments. So this'll generate path in segments
     // of runs of the same color.
-    var lastCategory = temperatureData[1].WasOff; // No need for transition between 0 and 1
-    var dataArray = [{ "x": temperatureData[0].DT, "y": temperatureData[0].Value }];
-    for (i = 1; i < temperatureData.length; i++) {
+    var lastCategory = dataArray[1].WasOff; // No need for transition between 0 and 1
+    var pathArray = [{ "x": dataArray[0].DT, "y": dataArray[0].Temperature }];
+    for (i = 1; i < dataArray.length; i++) {
 
-        var category = temperatureData[i].WasOff;
+        var category = dataArray[i].WasOff;
 
         if (category != lastCategory) {
             // Render path up to this point
-            graphG.append("path")
-                .datum(dataArray)
+            temperatureG.append("path")
+                .datum(pathArray)
                 .attr("fill", "none")
                 .attr("stroke", colorMap.get(lastCategory).color)
                 .attr("stroke-width", 1.5)
                 .attr("d", d3Line)
 
-            dataArray = [];
+            pathArray = [];
             lastCategory = category;
             // Starting point for next segment
-            dataArray.push({ "x": temperatureData[i - 1].DT, "y": temperatureData[i - 1].Value });
+            pathArray.push({ "x": dataArray[i - 1].DT, "y": dataArray[i - 1].Temperature });
         }
-        dataArray.push({ "x": temperatureData[i].DT, "y": temperatureData[i].Value });
+        pathArray.push({ "x": dataArray[i].DT, "y": dataArray[i].Temperature });
     }
 
     // Add the last segment, if there is one.
-    if (dataArray.length > 0)
-        graphG.append("path")
-            .datum(dataArray)
+    if (pathArray.length > 0)
+        temperatureG.append("path")
+            .datum(pathArray)
             .attr("fill", "none")
             .attr("stroke", colorMap.get(lastCategory).color)
             .attr("stroke-width", 1.5)
             .attr("d", d3Line)
 
     // <div> for the tooltip
-    temperatureTooltip = theDiv
+    tooltip = temperatureDiv
         .append("div")
         .style("position", "absolute")
         .style("visibility", "hidden")
@@ -154,7 +159,7 @@ function TempHumidityChart(theDivID, theData) {
         .style("border-style", "solid")
         .style("border-width", "1px");
 
-    tooltipPara = temperatureTooltip
+    tooltipPara = tooltip
         .append("p")
         .style("margin-left", "3px")
         .style("margin-right", "3px")
@@ -164,31 +169,31 @@ function TempHumidityChart(theDivID, theData) {
         .text("Tooltip");
 
     // Circles at the data points
-    var symbolsG = graphG.append("g");
-    for (var i = 0; i < temperatureData.length; i++) {
-        var d = temperatureData[i];
+    var symbolsG = temperatureG.append("g");
+    for (var i = 0; i < dataArray.length; i++) {
+        var d = dataArray[i];
         var category = d.WasOff;
         var circle = symbolsG.append('circle')
             .attr("id", i.toString()) // For finding temperatureData element in events
             .attr("cx", xScale(d.DT))
-            .attr("cy", yScale(d.Value))
-            .attr("r", 4)
+            .attr("cy", yScale(d.Temperature))
+            .attr("r", 3)
             .attr("stroke", "black")
-            .attr("fill", colorMap.get(category).color);
+            .attr("fill", colorMap.get(category).color)
+            .attr("data-torh", "t");
         // Tooltip for circle
         circle.attr("onmouseover", "OnMouseOver(this, event)")
             .attr("onmousemove", "OnMouseMove(this)")
             .attr("onmouseleave", "OnMouseOut(this)");
     }
 }
-
 function OnMouseOver(circle, event) {
 
-    temperatureTooltip.style("visibility", "visible");
-    temperatureTooltip.style("top", event.y - 20 + "px").style("left", event.x + 20 + "px");
+    tooltip.style("visibility", "visible");
+    tooltip.style("top", event.y - 20 + "px").style("left", event.x + 20 + "px");
 
     var i = circle.id;
-    var element = temperatureData[i];
+    var element = dataArray[i];
     var aDT = element.DT;
     // Make a DT string mm-dd-yyyy hh:mm (24 hr time)
     // Apparently no builtin DT formatting stuff in JS.
@@ -212,11 +217,19 @@ function OnMouseOver(circle, event) {
     if (element.WasOff)
         powerOffStr = '<br><span style="color:red;">Power off b4 this reading</span>';
 
-    var aStr = element.Value.toString() + " F"
-        + aDT_Str
-        + powerOffStr
-        ;
+    var aStr;
+    if (circle.getAttribute("data-torh") == "t")
+        aStr = element.Temperature.toString() + "F ";
+    else
+        aStr = element.Humidity.toString() + "% ";
+
+    aStr += aDT_Str + powerOffStr;
 
     tooltipPara.html(aStr);
 }
+function OnMouseMove(circle) {
+} // tooltip.style("top", (offsetY - 30) + "px").style("left", (event.offsetX + 10) + "px")
 
+function OnMouseOut(circle) {
+    tooltip.style("visibility", "hidden");
+}
