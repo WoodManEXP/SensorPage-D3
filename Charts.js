@@ -3,7 +3,7 @@
 
 // Placing these outside and functions like this places them in global scope
 var tooltip;
-var tempHumidityDataArray, upDownDataArray;
+var tempHumidityDataArray, upDownDataArray, baroDataArray;
 var tooltipPara;
 var dow = ["Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat"];
 
@@ -32,11 +32,12 @@ function CSV_ToArray(csv) {
     return result;
 }
 
-function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, tempHumidityData) {
+function Charts(upDownDivID, temperatureDivID, humidityDivID, baroDivID, upDownTimeData, tempHumidityData, baroData) {
 
     var upDownDiv = d3.select(upDownDivID);
     var temperatureDiv = d3.select(temperatureDivID);
     var humidityDiv = d3.select(humidityDivID);
+    var baroDiv = d3.select(baroDivID);
 
     const parseDT = d3.timeParse("%Y-%m-%d %H:%M"); // Use D3's parser for DT values
 
@@ -48,6 +49,7 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, te
     // CVT data from CSV to array
     upDownDataArray = CSV_ToArray(upDownTimeData);
     tempHumidityDataArray = CSV_ToArray(tempHumidityData);
+    baroDataArray = CSV_ToArray(baroData);
 
     // CVT Strings in upDownDataArray to other datatypes
     // Calc min and max for Y axis
@@ -71,14 +73,31 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, te
         array[index].WasOff = Number(value.WasOff);
     })
 
+    // CVT Strings in baroDataArray to other datatypes
+    // Calc min and max for Y axis
+    var yMinBaroPressure = 999, yMaxBaroPressure = -1;
+    var yMinBaroTemp = 999, yMaxBaroTemp = -1;
+    baroDataArray.forEach(function (value, index, array) {
+        array[index].DT = parseDT(value.DT);
+        var val = array[index].Temperature = Number(value.Temperature);
+        yMinBaroTemp = Math.min(yMinBaroTemp, val);
+        yMaxBaroTemp = Math.max(yMaxBaroTemp, val);
+        val = array[index].Baro = Number(value.Baro);
+        yMinBaroPressure = Math.min(yMinBaroPressure, val);
+        yMaxBaroPressure = Math.max(yMaxBaroPressure, val);
+        array[index].WasOff = Number(value.WasOff);
+    })
+
     // Set the dimensions and margins for the charts
     var chartMargin = { top: 10, right: 3, bottom: 20, left: 30 },
         chartWidth = 800 - chartMargin.left - chartMargin.right,
         upDownHeight = 100 - chartMargin.top - chartMargin.bottom,
-        tempHumidityHeight = 250 - chartMargin.top - chartMargin.bottom;
+        chartHeight = 250 - chartMargin.top - chartMargin.bottom;
 
     // Append the svg objects within the specified div
     // along with the primary g elements.
+
+    // Power up/down intervals
     var svg = upDownDiv // https://d3js.org/d3-selection/selecting
         .append("svg")
         .attr("width", chartWidth + chartMargin.left + chartMargin.right)
@@ -88,21 +107,33 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, te
         .attr("transform",
             "translate(" + chartMargin.left + "," + chartMargin.top + ")");
 
+    // Temperature
     svg = temperatureDiv // https://d3js.org/d3-selection/selecting
         .append("svg")
         .attr("width", chartWidth + chartMargin.left + chartMargin.right)
-        .attr("height", tempHumidityHeight + chartMargin.top + chartMargin.bottom);
+        .attr("height", chartHeight + chartMargin.top + chartMargin.bottom);
     var temperatureG = svg.append("g")
         .attr("id", "TemperatureG")
         .attr("transform",
             "translate(" + chartMargin.left + "," + chartMargin.top + ")");
 
+    // Humidity
     svg = humidityDiv // https://d3js.org/d3-selection/selecting
         .append("svg")
         .attr("width", chartWidth + chartMargin.left + chartMargin.right)
-        .attr("height", tempHumidityHeight + chartMargin.top + chartMargin.bottom);
+        .attr("height", chartHeight + chartMargin.top + chartMargin.bottom);
     var humidityG = svg.append("g")
         .attr("id", "HumidityG")
+        .attr("transform",
+            "translate(" + chartMargin.left + "," + chartMargin.top + ")");
+
+    // Barometric pressure 
+    svg = baroDiv // https://d3js.org/d3-selection/selecting
+        .append("svg")
+        .attr("width", chartWidth + chartMargin.left + chartMargin.right)
+        .attr("height", chartHeight + chartMargin.top + chartMargin.bottom);
+    var baroG = svg.append("g")
+        .attr("id", "BaroG")
         .attr("transform",
             "translate(" + chartMargin.left + "," + chartMargin.top + ")");
 
@@ -148,7 +179,7 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, te
         .x(function (d) { return xScale(d.x) })
         .y(function (d) { return yScale(d.y) });
 
-    // ***** UpDownTimeChart
+    // ***** Power UpDownTimeChart
 
     // X axis (each chart shares similar X axis)
     upDownG.append("g")
@@ -224,13 +255,13 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, te
     // X axis (each chart shares similar X axis)
     temperatureG.append("g")
         .style("font-size", "12px")
-        .attr("transform", `translate(0, ${tempHumidityHeight})`)
+        .attr("transform", `translate(0, ${chartHeight})`)
         .call(xAxis);
 
     // Y axis
     var yScale = d3.scaleLinear()
         .domain([yMinTemperature - 2, yMaxTemperature + 2]) // +-2, bit of extra space
-        .range([tempHumidityHeight, 0]);
+        .range([chartHeight, 0]);
     temperatureG.append("g")
         .style("font-size", "14px")
         .call(d3.axisLeft(yScale));
@@ -299,13 +330,13 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, te
     // X axis (duplicate of temperature chart X axis)
     humidityG.append("g")
         .style("font-size", "12px")
-        .attr("transform", `translate(0, ${tempHumidityHeight})`)
+        .attr("transform", `translate(0, ${chartHeight})`)
         .call(xAxis);
 
     // Y axis
     yScale = d3.scaleLinear()
         .domain([yMinHumidity - 2, yMaxHumidity + 2]) // +-2, bit of extra space
-        .range([tempHumidityHeight, 0]);
+        .range([chartHeight, 0]);
     humidityG.append("g")
         .style("font-size", "14px")
         .call(d3.axisLeft(yScale));
@@ -364,6 +395,75 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, upDownTimeData, te
             .attr("onmouseleave", "OnMouseOut(this)");
     }
 
+    // ***** Barometric pressure chart
+
+    // X axis (duplicate of temperature chart X axis)
+    baroG.append("g")
+        .style("font-size", "12px")
+        .attr("transform", `translate(0, ${chartHeight})`)
+        .call(xAxis);
+
+    // Y axis
+    yScale = d3.scaleLinear()
+        .domain([yMinBaroPressure - 2, yMaxBaroPressure + 2]) // +-2, bit of extra space
+        .range([chartHeight, 0]);
+    baroG.append("g")
+        .style("font-size", "14px")
+        .call(d3.axisLeft(yScale));
+
+    // Look as though there is no straight-forward means to gen <path>s
+    // with different color segments. So this'll generate path in segments
+    // of runs of the same color.
+    lastCategory = baroDataArray[1].WasOff; // No need for transition between 0 and 1
+    pathArray = [{ "x": baroDataArray[0].DT, "y": baroDataArray[0].Baro }];
+    for (i = 1; i < baroDataArray.length; i++) {
+
+        var category = baroDataArray[i].WasOff;
+
+        if (category != lastCategory) {
+            // Render path up to this point
+            baroG.append("path")
+                .datum(pathArray)
+                .attr("fill", "none")
+                .attr("stroke", colorMap.get(lastCategory).color)
+                .attr("stroke-width", 1.5)
+                .attr("d", d3Line)
+
+            pathArray = [];
+            lastCategory = category;
+            // Starting point for next segment
+            pathArray.push({ "x": baroDataArray[i - 1].DT, "y": baroDataArray[i - 1].Baro });
+        }
+        pathArray.push({ "x": baroDataArray[i].DT, "y": baroDataArray[i].Baro });
+    }
+
+    // Add the last segment, if there is one.
+    if (pathArray.length > 0)
+        baroG.append("path")
+            .datum(pathArray)
+            .attr("fill", "none")
+            .attr("stroke", colorMap.get(lastCategory).color)
+            .attr("stroke-width", 1.5)
+            .attr("d", d3Line)
+
+    // Circles at the data points
+    symbolsG = baroG.append("g");
+    for (var i = 0; i < baroDataArray.length; i++) {
+        var d = baroDataArray[i];
+        var category = d.WasOff;
+        var circle = symbolsG.append('circle')
+            .attr("id", i.toString()) // For finding baroData element in events
+            .attr("cx", xScale(d.DT))
+            .attr("cy", yScale(d.Baro))
+            .attr("r", 3)
+            .attr("stroke", "black")
+            .attr("fill", colorMap.get(category).color)
+            .attr("data-whichchart", "b");
+        // Tooltip for circle
+        circle.attr("onmouseover", "OnMouseOver(this, event)")
+            .attr("onmousemove", "OnMouseMove(this)")
+            .attr("onmouseleave", "OnMouseOut(this)");
+    }
 }
 function OnMouseOver(circle, event) {
 
@@ -379,6 +479,9 @@ function OnMouseOver(circle, event) {
         case "t":
         case "h":
             element = tempHumidityDataArray[i];
+            break;
+        case "b":
+            element = baroDataArray[i];
             break;
         default:
     }
@@ -414,6 +517,9 @@ function OnMouseOver(circle, event) {
             break;
         case "h":
             aStr = element.Humidity.toString() + "%<br>" + aDT_Str + powerOffStr;
+            break;
+        case "b":
+            aStr = element.Baro.toString() + " inches<br>" + aDT_Str + powerOffStr;
             break;
         default:
     }
