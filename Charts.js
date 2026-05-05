@@ -6,6 +6,7 @@ var tooltip;
 var tempHumidityDataArray, upDownDataArray, baroDataArray;
 var tooltipPara;
 var dow = ["Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat"];
+const parseDT = d3.timeParse("%Y-%m-%d %H:%M"); // Use D3's parser for DT values
 
 // Cvt CSV data string, with headers, to a data array suitable for D3
 function CSV_ToArray(csv) {
@@ -32,14 +33,18 @@ function CSV_ToArray(csv) {
     return result;
 }
 
-function Charts(upDownDivID, temperatureDivID, humidityDivID, baroDivID, upDownTimeData, tempHumidityData, baroData) {
+function Charts(upDownDivID, temperatureDivID, humidityDivID
+    , baroDivID, Baro2TrendDivID, Baro6TrendDivID, Baro12TrendDivID
+    , upDownTimeData, tempHumidityData, baroData
+) {
 
     var upDownDiv = d3.select(upDownDivID);
     var temperatureDiv = d3.select(temperatureDivID);
     var humidityDiv = d3.select(humidityDivID);
     var baroDiv = d3.select(baroDivID);
-
-    const parseDT = d3.timeParse("%Y-%m-%d %H:%M"); // Use D3's parser for DT values
+    var baro2TrendDiv = d3.select(Baro2TrendDivID);
+    var baro6TrendDiv = d3.select(Baro6TrendDivID);
+    var baro12TrendDiv = d3.select(Baro12TrendDivID);
 
     colorMap = new Map([
         [0, { label: "PWR on", color: "steelblue" }],
@@ -137,6 +142,37 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, baroDivID, upDownT
         .attr("transform",
             "translate(" + chartMargin.left + "," + chartMargin.top + ")");
 
+    // Barometric pressure trend charts
+    var baroTrendChartHeight = chartHeight / 2;
+    var baroTrendChartWidth = chartWidth / 3;
+    svg = baro2TrendDiv // https://d3js.org/d3-selection/selecting
+        .append("svg")
+        .attr("width", (baroTrendChartWidth) + chartMargin.left + chartMargin.right)
+        .attr("height", (baroTrendChartHeight) + chartMargin.top + chartMargin.bottom);
+    var baro2TrendG = svg.append("g")
+        .attr("id", "Baro2TrendG")
+        .attr("transform",
+            "translate(" + chartMargin.left + "," + chartMargin.top + ")");
+
+    svg = baro6TrendDiv // https://d3js.org/d3-selection/selecting
+        .append("svg")
+        .attr("width", (baroTrendChartWidth) + chartMargin.left + chartMargin.right)
+        .attr("height", (baroTrendChartHeight) + chartMargin.top + chartMargin.bottom);
+    var baro6TrendG = svg.append("g")
+        .attr("id", "Baro6TrendG")
+        .attr("transform",
+            "translate(" + chartMargin.left + "," + chartMargin.top + ")");
+
+    svg = baro12TrendDiv // https://d3js.org/d3-selection/selecting
+        .append("svg")
+        .attr("width", (baroTrendChartWidth) + chartMargin.left + chartMargin.right)
+        .attr("height", (baroTrendChartHeight) + chartMargin.top + chartMargin.bottom);
+    var baro12TrendG = svg.append("g")
+        .attr("id", "Baro12TrendG")
+        .attr("transform",
+            "translate(" + chartMargin.left + "," + chartMargin.top + ")");
+
+
     // <div> and <p> for the tooltips. Does not matter what <div> is used...
     tooltip = temperatureDiv
         .append("div")
@@ -156,11 +192,17 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, baroDivID, upDownT
         .style("font-family", "Arial")
         .text("Tooltip");
 
+
+    // Line generator, supplies coords from data for the line segments
+    var d3Line = d3.line()
+        .x(function (d) { return xScale(d.x) })
+        .y(function (d) { return yScale(d.y) });
+
     //
-    // Prepare X axis --> some attributes shared among all charts
+    // Prepare X axis --> for up/down, temperature, humidity charts
     //
-    const xScale = d3.scaleTime();                  // A D3 scaler
-    const extent = d3.extent(tempHumidityDataArray, // Let D3 calculate extent
+    var xScale = d3.scaleTime();                  // A D3 scaler
+    var extent = d3.extent(tempHumidityDataArray, // Let D3 calculate extent
         function (d) { return d.DT; });
     // Stretch the extent a bit, helps with X margin apperance
     // FYI: the extent array has references to data elements rather
@@ -171,13 +213,8 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, baroDivID, upDownT
     extent[1].setHours(extent[1].getHours() + 3); // with chart X margin
     xScale.domain(extent)
         .range([0, chartWidth]);
-    const xAxis = d3.axisBottom(xScale)
+    var xAxis = d3.axisBottom(xScale)
         .ticks(7);
-
-    // Line generator, supplies coords from data for the line segments
-    var d3Line = d3.line()
-        .x(function (d) { return xScale(d.x) })
-        .y(function (d) { return yScale(d.y) });
 
     // ***** Power UpDownTimeChart
 
@@ -400,7 +437,7 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, baroDivID, upDownT
     // X axis (duplicate of temperature chart X axis)
     baroG.append("g")
         .style("font-size", "12px")
-        .attr("transform", `translate(0, ${chartHeight})`)
+        .attr("transform", `translate(0, ${chartHeight})`) // Move to botton
         .call(xAxis);
 
     // Y axis
@@ -464,70 +501,172 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID, baroDivID, upDownT
             .attr("onmousemove", "OnMouseMove(this)")
             .attr("onmouseleave", "OnMouseOut(this)");
     }
+
+    // ******  Barometric pressure trend charts
+
+    // Draw a line from first reading in the time span to most recent reading, CurrBaro.
+    var currentReadingDT = parseDT(ReadingDate + " " + ReadingTime);
+
+    // 2 hour/reading chart
+    BaroTrendChart(2, baro2TrendG, baroDataArray, currentReadingDT, CurrBaro, baroTrendChartWidth, baroTrendChartHeight, yMinBaroPressure, yMaxBaroPressure);
+    // 6 hour/reading chart
+    BaroTrendChart(6, baro6TrendG, baroDataArray, currentReadingDT, CurrBaro, baroTrendChartWidth, baroTrendChartHeight, yMinBaroPressure, yMaxBaroPressure);
+    // 12 hour/reading chart
+    BaroTrendChart(12, baro12TrendG, baroDataArray, currentReadingDT, CurrBaro, baroTrendChartWidth, baroTrendChartHeight, yMinBaroPressure, yMaxBaroPressure);
 }
-function OnMouseOver(circle, event) {
 
-    tooltip.style("visibility", "visible");
-    tooltip.style("top", event.y - 20 + "px").style("left", event.x + 20 + "px");
+// Draw individual Barow trend chart
+function BaroTrendChart(readingsBack, baroTrendG, baroDataArray, currentReadingDT, currBaro, baroTrendChartWidth, baroTrendChartHeight, yMinBaroPressure, yMaxBaroPressure) {
 
-    var i = circle.id;
-    var element;
-    switch (circle.getAttribute("data-whichchart")) {
-        case "u":
-            element = upDownDataArray[i];
-            break;
-        case "t":
-        case "h":
-            element = tempHumidityDataArray[i];
-            break;
-        case "b":
-            element = baroDataArray[i];
-            break;
-        default:
+    var baroReading, baroReading_DT;
+
+    if (readingsBack <= baroDataArray.length) {
+        baroReading = baroDataArray[baroDataArray.length - readingsBack].Baro;
+        baroReading_DT = baroDataArray[baroDataArray.length - readingsBack].DT;
+
+        baroTrendChartWidth -= 25;
+
+        // Path to draw (2 points)
+        pathArray = [{ "x": baroReading_DT, "y": baroReading }, { "x": currentReadingDT, "y": currBaro }];
+
+        // X axis
+        var extent = d3.extent(pathArray, // Let D3 calculate extent
+            function (d) { return d.x; });
+        // Stretch the extent a bit, helps with X margin apperance
+        // FYI: the extent array has references to data elements rather
+        // than copies. MAke a new Date so as to not mess with the original data.
+        var extentStretch = (readingsBack >= 12) ? 60 : 15;
+        extent[0] = new Date(extent[0]);
+        extent[0].setMinutes(extent[0].getMinutes() - extentStretch); // Stretch out a bit, helps
+        extent[1] = new Date(extent[1]);
+        extent[1].setMinutes(extent[1].getMinutes() + extentStretch); // with chart X margin
+
+        var xScale = d3.scaleTime(); // A D3 scaler
+        xScale.domain(extent)
+            .range([0, baroTrendChartWidth]);
+        xAxis = d3.axisBottom(xScale)
+            .ticks(2);
+
+        baroTrendG.append("g")
+            .style("font-size", "12px")
+            .attr("transform", `translate(0, ${baroTrendChartHeight})`)
+            .call(xAxis);
+
+        // Y axis
+        var yScale = d3.scaleLinear()
+            .domain([yMinBaroPressure - 2, yMaxBaroPressure + 2]) // +-2, bit of extra space
+            .range([baroTrendChartHeight, 0]);
+        baroTrendG.append("g")
+            .style("font-size", "14px")
+            .call(d3.axisLeft(yScale));
+
+        // Line generator, supplies coords from data for the line segments
+        var d3Line = d3.line()
+            .x(function (d) { return xScale(d.x) })
+            .y(function (d) { return yScale(d.y) });
+
+        // Render path
+        baroTrendG.append("path")
+            .datum(pathArray)
+            .attr("fill", "none")
+            .attr("stroke", colorMap.get(0).color)
+            .attr("stroke-width", 1.5)
+            .attr("d", d3Line)
+
+        // Circles at the data points
+        symbolsG = baroTrendG.append("g");
+        for (var i = 0; i < pathArray.length; i++) {
+            var d = pathArray[i];
+            var circle = symbolsG.append('circle')
+                .attr("id", (i == 0) ? (baroDataArray.length - readingsBack).toString() : "-1") // For finding baroData element in events
+                .attr("cx", xScale(d.x))
+                .attr("cy", yScale(d.y))
+                .attr("r", 3)
+                .attr("stroke", "black")
+                .attr("fill", colorMap.get(0).color)
+                .attr("data-whichchart", "bT");
+            // Tooltip for circle
+            circle.attr("onmouseover", "OnMouseOver(this, event)")
+                .attr("onmousemove", "OnMouseMove(this)")
+                .attr("onmouseleave", "OnMouseOut(this)");
+        }
     }
-    var aDT = element.DT;
-    // Make a DT string mm-dd-yyyy hh:mm (24 hr time)
-    // Apparently no builtin DT formatting stuff in JS.
-    var aDT_Str =
-        dow[aDT.getDay()]
-        + " "
-        + (1 + aDT.getMonth()).toString().padStart(2, '0')
-        + "-"
-        + aDT.getDate().toString().padStart(2, '0')
-        + "-"
-        + aDT.getFullYear().toString()
-        + " "
-        + (1 + aDT.getHours()).toString().padStart(2, '0')
-        + ":"
-        + aDT.getMinutes().toString().padStart(2, '0')
-        ;
+}
+    function OnMouseOver(circle, event) {
 
-    // Set red "power was off before this reading" string
-    var powerOffStr = "";
-    if (element.WasOff)
-        powerOffStr = '<br><span style="color:red;">Power off b4 this reading</span>';
+        tooltip.style("visibility", "visible");
+        tooltip.style("top", event.y - 20 + "px").style("left", event.x + 20 + "px");
 
-    var aStr;
-    switch (circle.getAttribute("data-whichchart")) {
-        case "u":
-            aStr = aDT_Str + powerOffStr;
-            break;
-        case "t":
-            aStr = element.Temperature.toString() + "F<br>" + aDT_Str + powerOffStr;
-            break;
-        case "h":
-            aStr = element.Humidity.toString() + "%<br>" + aDT_Str + powerOffStr;
-            break;
-        case "b":
-            aStr = element.Baro.toString() + " inches<br>" + aDT_Str + powerOffStr;
-            break;
-        default:
+        var powerOffStr = "";
+
+        var i = Number(circle.id);
+        var element;
+        switch (circle.getAttribute("data-whichchart")) {
+            case "u":
+                element = upDownDataArray[i];
+                break;
+            case "t":
+            case "h":
+                element = tempHumidityDataArray[i];
+                break;
+            case "b":
+                element = baroDataArray[i];
+                break;
+            case "bT":
+                if (-1 != i)
+                    element = baroDataArray[i];
+                else {// Synthesize an element from current barometric pressure reading
+                    element = { "DT": ReadingDate + " " + ReadingTime, "Temperature": "0", "Baro": CurrBaro.toString(), "WasOff": "0" };
+                    element.DT = parseDT(element.DT);
+                    element.WasOff = Number(element.WasOff);
+                }
+                break;
+            default:
+        }
+
+        var aDT = element.DT;
+        // Make a DT string mm-dd-yyyy hh:mm (24 hr time)
+        // Apparently no builtin DT formatting stuff in JS.
+        var aDT_Str =
+            dow[aDT.getDay()]
+            + " "
+            + (1 + aDT.getMonth()).toString().padStart(2, '0')
+            + "-"
+            + aDT.getDate().toString().padStart(2, '0')
+            + "-"
+            + aDT.getFullYear().toString()
+            + " "
+            + aDT.getHours().toString().padStart(2, '0')
+            + ":"
+            + aDT.getMinutes().toString().padStart(2, '0')
+            ;
+
+        // Set red "power was off before this reading" string
+        if (element.WasOff)
+            powerOffStr = '<br><span style="color:red;">Power off b4 this reading</span>';
+
+        var aStr;
+        switch (circle.getAttribute("data-whichchart")) {
+            case "u":
+                aStr = aDT_Str + powerOffStr;
+                break;
+            case "t":
+                aStr = element.Temperature.toString() + "F<br>" + aDT_Str + powerOffStr;
+                break;
+            case "h":
+                aStr = element.Humidity.toString() + "%<br>" + aDT_Str + powerOffStr;
+                break;
+            case "b":
+            case "bT":
+                aStr = element.Baro.toString() + " inches<br>" + aDT_Str + powerOffStr;
+                break;
+            default:
+        }
+        tooltipPara.html(aStr);
     }
-    tooltipPara.html(aStr);
-}
-function OnMouseMove(circle) {
-} // tooltip.style("top", (offsetY - 30) + "px").style("left", (event.offsetX + 10) + "px")
+    function OnMouseMove(circle) {
+    } // tooltip.style("top", (offsetY - 30) + "px").style("left", (event.offsetX + 10) + "px")
 
-function OnMouseOut(circle) {
-    tooltip.style("visibility", "hidden");
-}
+    function OnMouseOut(circle) {
+        tooltip.style("visibility", "hidden");
+    }
