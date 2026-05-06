@@ -16,6 +16,13 @@
             color: blue;
             text-align: center;
         }
+        .chartTitle {
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 20px;
+            color: blue;
+            text-align: left;
+        }
         .trendTitle {
             font-family: sans-serif;
             font-weight: bold;
@@ -43,12 +50,12 @@
 <body>
     <script>
         // These vars are available globally
-        var ReadingDate =  "_ReadingDate"; // "2013-05-05";
-        var ReadingTime =  "_ReadingTime"; // "00:45";
-        var CurrTempF = Number("_CurrTempF"); // 29
-        var CurrTempC = Number("_CurrTempC"); // 1
-        var CurrHumidity = Number("_CurrHumidity"); // 33
-        var CurrBaro = Number("_CurrBaro"); // 27.00
+        var ReadingDate = "2013-05-05"; // "_ReadingDate"; // "2013-05-05";
+        var ReadingTime = "00:45"; // "_ReadingTime"; // "00:45";
+        var CurrTempF = 29; // Number("_CurrTempF"); // 29
+        var CurrTempC = 1; // Number("_CurrTempC"); // 1
+        var CurrHumidity = 33; // Number("_CurrHumidity"); // 33
+        var CurrBaro = 27.00; // Number("_CurrBaro"); // 27.00
     </script>
     <!-- Div for title section -->
     <div id="TitleDiv">
@@ -97,7 +104,7 @@
     <table>
         <tr>
             <td>
-                <p class="currReadingValue">_UpDownTitle</p>
+                <p class="chartTitle">_UpDownTitle</p>
             </td>
         </tr>
         <tr>
@@ -107,7 +114,7 @@
         </tr>
         <tr>
             <td>
-                <p class="currReadingValue">_TempTitle</p>
+                <p class="chartTitle">_TempTitle</p>
             </td>
         </tr>
         <tr>
@@ -117,7 +124,7 @@
         </tr>
         <tr>
             <td>
-                <p class="currReadingValue">_HumidityTitle</p>
+                <p class="chartTitle">_HumidityTitle</p>
             </td>
         </tr>
         <tr>
@@ -127,7 +134,7 @@
         </tr>
         <tr>
             <td>
-                <p class="currReadingValue">_BaroTitle</p>
+                <p class="chartTitle">_BaroTitle</p>
             </td>
         </tr>
         <tr>
@@ -137,7 +144,7 @@
         </tr>
         <tr>
             <td>
-                <p class="currReadingValue">Barometric Pressure Trends</p>
+                <p class="chartTitle">Barometric Pressure Trends</p>
             </td>
         </tr>
         <tr>
@@ -166,12 +173,9 @@
         // upDownTimeData is CSV string eg 2013-04-28 01:00,0
         // DTs look like 2013-04-28 01:00
         // WasOff is 0 or 1
-        //
+        // _UpDownTimeValues
         var upDownTimeData =
             `DT,WasOff
-_UpDownTimeValues
-`;
-        /*
         2013-04-28 01:00,1
         2013-04-28 02:00,0
         2013-04-28 03:00,0
@@ -340,19 +344,16 @@ _UpDownTimeValues
         2013-05-04 22:00,0
         2013-05-04 23:00,0
         2013-05-05 00:00,0
-        */
+        `
 
         // tempHumidityData is CSV string eg 2013-04-28 01:00,43,75,0,0
         // DTs look like 2013-04-28 01:00
         // Temperature looks like 43
         // Humidity looks like 75
         // WasOff is 0 or 1
-        // 
+        // _TempHumidityValues
         var tempHumidityData =
             `DT,Temperature,Humidity,WasOff
-_TempHumidityValues
-`;
-        /*
         2013-04-28 01:00,43,60,1
         2013-04-28 02:00,45,70,0
         2013-04-28 03:00,47,78,0
@@ -521,19 +522,16 @@ _TempHumidityValues
         2013-05-04 22:00,35,30,0
         2013-05-04 23:00,37,40,0
         2013-05-05 00:00,40,50,0
-        */
+        `
 
         // baroData is CSV string eg 2013-04-28 01:00,43,2776,0
         // DTs look like 2013-04-28 01:00
         // Temperature looks like 43
         // Baro looks like 2775 (27.75 inches)
         // WasOff is 0 or 1
-        //
+        // _BaroValues
         var baroData =
             `DT,Temperature,Baro,WasOff
-_BaroValues
-`;
-        /*
         2013-04-28 01:00,43,30.28,1
         2013-04-28 02:00,45,31.,0
         2013-04-28 03:00,47,31.62,0
@@ -702,7 +700,8 @@ _BaroValues
         2013-05-04 22:00,35,28.,0
         2013-05-04 23:00,37,28.72,0
         2013-05-05 00:00,40,29.5,0
-        */
+        `
+
         Charts("#UpDownChartDiv", "#TemperatureChartDiv", "#HumidityChartDiv"
             , "#BaroChartDiv", "#Baro2TrendDiv", "#Baro6TrendDiv", "#Baro12TrendDiv"
             , upDownTimeData, tempHumidityData, baroData
