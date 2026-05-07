@@ -87,7 +87,7 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID
         var val = array[index].Temperature = Number(value.Temperature);
         yMinBaroTemp = Math.min(yMinBaroTemp, val);
         yMaxBaroTemp = Math.max(yMaxBaroTemp, val);
-        val = array[index].Baro = Number(value.Baro);
+        val = array[index].Baro = Number(value.Baro) / 100.;
         yMinBaroPressure = Math.min(yMinBaroPressure, val);
         yMaxBaroPressure = Math.max(yMaxBaroPressure, val);
         array[index].WasOff = Number(value.WasOff);
@@ -129,16 +129,6 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID
         .attr("height", chartHeight + chartMargin.top + chartMargin.bottom);
     var humidityG = svg.append("g")
         .attr("id", "HumidityG")
-        .attr("transform",
-            "translate(" + chartMargin.left + "," + chartMargin.top + ")");
-
-    // Barometric pressure 
-    svg = baroDiv // https://d3js.org/d3-selection/selecting
-        .append("svg")
-        .attr("width", chartWidth + chartMargin.left + chartMargin.right)
-        .attr("height", chartHeight + chartMargin.top + chartMargin.bottom);
-    var baroG = svg.append("g")
-        .attr("id", "BaroG")
         .attr("transform",
             "translate(" + chartMargin.left + "," + chartMargin.top + ")");
 
@@ -403,7 +393,16 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID
 
     // ***** Barometric pressure chart
 
-    // X axis (duplicate of temperature chart X axis)
+    svg = baroDiv // https://d3js.org/d3-selection/selecting
+        .append("svg")
+        .attr("width", chartWidth + chartMargin.left + chartMargin.right)
+        .attr("height", chartHeight + chartMargin.top + chartMargin.bottom);
+    var baroG = svg.append("g")
+        .attr("id", "BaroG")
+        .attr("transform",
+            "translate(" + (chartMargin.left + 20) + "," + chartMargin.top + ")");
+
+    // X axis
     baroG.append("g")
         .style("font-size", "12px")
         .attr("transform", `translate(0, ${chartHeight})`) // Move to botton
@@ -411,11 +410,14 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID
 
     // Y axis
     yScale = d3.scaleLinear()
-        .domain([yMinBaroPressure - 2, yMaxBaroPressure + 2]) // +-2, bit of extra space
+        .domain([yMinBaroPressure - .2, yMaxBaroPressure + .2]) // Add a bit of extra space
         .range([chartHeight, 0]);
+    var baro_yAxis = d3.axisLeft(yScale)
+        .ticks(6)
+        .tickFormat(d3.format(".2f"));
     baroG.append("g")
-        .style("font-size", "14px")
-        .call(d3.axisLeft(yScale));
+        .style("font-size", "12px")
+        .call(baro_yAxis);
 
     // Look as though there is no straight-forward means to gen <path>s
     // with different color segments. So this'll generate path in segments
@@ -488,7 +490,8 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID
 }
 
 // Draw individual Barow trend chart
-function BaroTrendChart(readingsBack, baroTrendDiv, baroDataArray, currentReadingDT, currBaro, baroTrendChartWidth, baroTrendChartHeight, yMinBaroPressure, yMaxBaroPressure) {
+function BaroTrendChart(readingsBack, baroTrendDiv, baroDataArray, currentReadingDT, currBaro
+    , baroTrendChartWidth, baroTrendChartHeight, yMinBaroPressure, yMaxBaroPressure) {
 
     var baroReading, baroReading_DT;
     const chartMargin = { top: 0, right: 0, bottom: 0, left: 40 };
@@ -534,15 +537,15 @@ function BaroTrendChart(readingsBack, baroTrendDiv, baroDataArray, currentReadin
 
         baroTrendG.append("g")
             .style("font-size", "12px")
-            .attr("transform", `translate(0, ${baroTrendChartHeight-20})`)
+            .attr("transform", `translate(0, ${baroTrendChartHeight - 20})`)
             .call(xAxis);
 
         // Y axis
         var yScale = d3.scaleLinear()
-            .domain([yMinBaroPressure - 2, yMaxBaroPressure + 2]) // +-2, bit of extra space
-            .range([baroTrendChartHeight-20, 0]);
+            .domain([yMinBaroPressure - .2, yMaxBaroPressure + .2]) // Add a bit of extra space
+            .range([baroTrendChartHeight - 20, 0]);
         var yAxis = d3.axisLeft(yScale)
-            .ticks(4)
+            .ticks(3)
             .tickFormat(d3.format(".2f"));
         baroTrendG.append("g")
             .style("font-size", "12px")
