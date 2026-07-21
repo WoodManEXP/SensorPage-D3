@@ -195,7 +195,9 @@ function Charts(upDownDivID, temperatureDivID, humidityDivID
     // Look as though there is no straight-forward means to gen <path>s
     // with different color segments. So this'll generate path in segments
     // of runs of the same color.
-    var lastCategory = upDownDataArray[1].WasOff; // No need for transition between 0 and 1
+    var lastCategory;
+    lastCategory = (upDownDataArray.length > 1) ? upDownDataArray[1].WasOff : 0;
+    //var lastCategory = upDownDataArray[1].WasOff; // No need for transition between 0 and 1
     var pathArray = [{ "x": upDownDataArray[0].DT, "y": upDownDataArray[0].WasOff }];
     for (i = 1; i < upDownDataArray.length; i++) {
 
